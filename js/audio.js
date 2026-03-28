@@ -71,7 +71,7 @@ class AudioManager {
    * Signals the end of a rep or phase
    */
   playStopTone() {
-    this.playTone(880, 200, 0.3);
+    this.playTone(880, 400, 0.3);
   }
 
   /**
@@ -83,14 +83,15 @@ class AudioManager {
     // Play distinctive countdown: 2 beeps at 3s, 2 beeps at 2s, then work start tone at 1s
     // 3-second mark: 2 beeps
     setTimeout(() => this.playCountdownBeep(), 0);
-    setTimeout(() => this.playCountdownBeep(), 150);
+    setTimeout(() => this.playCountdownBeep(), 300);
 
     // 2-second mark: 2 beeps
     setTimeout(() => this.playCountdownBeep(), 1000);
     setTimeout(() => this.playCountdownBeep(), 1150);
 
-    // 1-second mark: work start tone (different tone to signal imminent start)
-    setTimeout(() => this.playStartTone(), 2000);
+    // 1-second mark: 2 beeps
+    setTimeout(() => this.playCountdownBeep(), 2000);
+    setTimeout(() => this.playCountdownBeep(), 2100);
   }
 
   /**
@@ -98,7 +99,7 @@ class AudioManager {
    * Used in countdown sequence
    */
   playCountdownBeep() {
-    this.playTone(600, 100, 0.3);
+    this.playTone(600, 100, 0.5);
   }
 
   /**
