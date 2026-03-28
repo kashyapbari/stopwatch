@@ -77,16 +77,28 @@ class AudioManager {
   /**
    * Play countdown beeps (3 tones)
    * Used for 3-second countdown before workout/set starts
+   * Plays 2 distinctive beeps at each second (3, 2, 1)
    */
   playCountdown() {
-    const frequencies = [523, 659, 784]; // C, E, G notes
-    const interval = 200; // 200ms between beeps
+    // Play distinctive countdown: 2 beeps at 3s, 2 beeps at 2s, then work start tone at 1s
+    // 3-second mark: 2 beeps
+    setTimeout(() => this.playCountdownBeep(), 0);
+    setTimeout(() => this.playCountdownBeep(), 150);
 
-    frequencies.forEach((freq, index) => {
-      setTimeout(() => {
-        this.playTone(freq, 150, 0.3);
-      }, index * interval);
-    });
+    // 2-second mark: 2 beeps
+    setTimeout(() => this.playCountdownBeep(), 1000);
+    setTimeout(() => this.playCountdownBeep(), 1150);
+
+    // 1-second mark: work start tone (different tone to signal imminent start)
+    setTimeout(() => this.playStartTone(), 2000);
+  }
+
+  /**
+   * Play a single countdown beep (600Hz, 100ms)
+   * Used in countdown sequence
+   */
+  playCountdownBeep() {
+    this.playTone(600, 100, 0.3);
   }
 
   /**

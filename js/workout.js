@@ -234,15 +234,15 @@ class WorkoutEngine {
     if (timeInSetCycle < setWorkMs) {
       // In set work phase
       const repCycle = timeInSetCycle % repCycleMs;
-      const atWorkBoundary = repCycle < tolerance;
-      const atRestBoundary = Math.abs(repCycle - repCycleMs) < tolerance;
+      const atWorkStart = repCycle < tolerance;
+      const atWorkEnd = Math.abs(repCycle - workPhaseMs) < tolerance;
 
-      if (atWorkBoundary && phase === 'working') {
+      if (atWorkStart && phase === 'working') {
         // Start of work phase - play start tone
         audioManager.playStartTone();
         this.state.lastToneTime = elapsedMs;
-      } else if (atRestBoundary && phase === 'resting') {
-        // Start of rest phase - play stop tone
+      } else if (atWorkEnd && phase === 'resting') {
+        // End of work phase (start of rest) - play stop tone
         audioManager.playStopTone();
         this.state.lastToneTime = elapsedMs;
       }
