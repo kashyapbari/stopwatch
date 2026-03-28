@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Advanced stopwatch for timed workouts with audio cues and preset management">
+  <meta name="theme-color" content="#0f172a">
+  <title>Advanced Stopwatch - Workout Timer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Quick Setup View -->
+    <div id="quick-setup" class="view">
+      <header class="app-header">
+        <h1>Advanced Stopwatch</h1>
+      </header>
+      
+      <main class="view-content">
+        <section class="quick-setup-section">
+          <h2>Quick Preset Setup</h2>
+          
+          <div class="form-group">
+            <label for="quick-work">Work per Rep (seconds)</label>
+            <input 
+              type="number" 
+              id="quick-work" 
+              class="quick-input" 
+              data-field="secondsPerRep"
+              min="1" 
+              max="300" 
+              value="30"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="quick-rest-reps">Rest between Reps (seconds)</label>
+            <input 
+              type="number" 
+              id="quick-rest-reps" 
+              class="quick-input" 
+              data-field="restBetweenReps"
+              min="0" 
+              max="300" 
+              value="15"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="quick-reps">Reps per Set</label>
+            <input 
+              type="number" 
+              id="quick-reps" 
+              class="quick-input" 
+              data-field="repsPerSet"
+              min="1" 
+              max="50" 
+              value="5"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="quick-sets">Number of Sets</label>
+            <input 
+              type="number" 
+              id="quick-sets" 
+              class="quick-input" 
+              data-field="numberOfSets"
+              min="1" 
+              max="50" 
+              value="3"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="quick-rest-sets">Rest between Sets (seconds)</label>
+            <input 
+              type="number" 
+              id="quick-rest-sets" 
+              class="quick-input" 
+              data-field="restBetweenSets"
+              min="0" 
+              max="600" 
+              value="60"
+            >
+          </div>
+        </section>
+
+        <div class="button-group">
+          <button id="btn-start-workout" class="btn btn-primary">Start Workout</button>
+          <button id="btn-advanced-setup" class="btn btn-secondary">Advanced</button>
+        </div>
+
+        <section class="recent-presets-section">
+          <h3>Recent Presets</h3>
+          <div id="recent-presets" class="presets-list">
+            <p class="text-muted">No saved presets yet</p>
+          </div>
+        </section>
+
+        <div class="button-group">
+          <button id="btn-view-history" class="btn btn-tertiary">View History</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Advanced Setup View -->
+    <div id="advanced-setup" class="view hidden">
+      <header class="app-header">
+        <h1>Detailed Configuration</h1>
+      </header>
+
+      <main class="view-content">
+        <section class="advanced-setup-section">
+          <div class="form-group">
+            <label for="adv-reps">Reps per Set</label>
+            <input 
+              type="number" 
+              id="adv-reps" 
+              class="adv-input" 
+              data-field="repsPerSet"
+              min="1" 
+              max="50"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="adv-work">Seconds per Rep</label>
+            <input 
+              type="number" 
+              id="adv-work" 
+              class="adv-input" 
+              data-field="secondsPerRep"
+              min="1" 
+              max="300"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="adv-rest-reps">Rest between Reps (seconds)</label>
+            <input 
+              type="number" 
+              id="adv-rest-reps" 
+              class="adv-input" 
+              data-field="restBetweenReps"
+              min="0" 
+              max="300"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="adv-sets">Number of Sets</label>
+            <input 
+              type="number" 
+              id="adv-sets" 
+              class="adv-input" 
+              data-field="numberOfSets"
+              min="1" 
+              max="50"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="adv-rest-sets">Rest between Sets (seconds)</label>
+            <input 
+              type="number" 
+              id="adv-rest-sets" 
+              class="adv-input" 
+              data-field="restBetweenSets"
+              min="0" 
+              max="600"
+            >
+          </div>
+        </section>
+
+        <div class="button-group button-group-split">
+          <button id="btn-back-to-quick" class="btn btn-secondary">Back</button>
+          <button id="btn-adv-start" class="btn btn-primary">Start Workout</button>
+        </div>
+
+        <div class="button-group">
+          <button id="btn-save-preset" class="btn btn-tertiary">Save as Preset</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Workout View -->
+    <div id="workout" class="view hidden">
+      <header class="app-header">
+        <h1>Advanced Stopwatch</h1>
+      </header>
+
+      <main class="view-content workout-view">
+        <div class="workout-status">
+          <div id="rep-set-counter" class="rep-set-counter">Rep 1 / Set 1</div>
+          <div id="phase-status" class="phase-status">STARTING</div>
+        </div>
+
+        <div class="timer-display">
+          <div id="elapsed-time" class="elapsed-time">00:00</div>
+          <div class="timer-label">Elapsed Time</div>
+        </div>
+
+        <div class="next-phase-info">
+          <span id="next-phase-text">Starting...</span>
+        </div>
+
+        <div class="button-group button-group-split">
+          <button id="btn-pause-workout" class="btn btn-secondary">Pause</button>
+          <button id="btn-reset-workout" class="btn btn-secondary">Reset</button>
+        </div>
+
+        <div class="button-group">
+          <button id="btn-stop-workout" class="btn btn-danger">Stop Workout</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- History View -->
+    <div id="history" class="view hidden">
+      <header class="app-header">
+        <h1>Workout History</h1>
+      </header>
+
+      <main class="view-content">
+        <section class="history-section">
+          <h2>Past Workouts</h2>
+          <div id="history-list" class="history-list">
+            <p class="text-muted">No workout history yet</p>
+          </div>
+        </section>
+
+        <div class="button-group">
+          <button id="btn-back-to-setup" class="btn btn-secondary">Back to Setup</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirm-dialog" class="dialog hidden">
+      <div class="dialog-content">
+        <h2 id="confirm-title">Confirm Action</h2>
+        <p id="confirm-message">Are you sure?</p>
+        <div class="dialog-buttons">
+          <button id="btn-confirm-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-confirm-yes" class="btn btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preset Selector Dialog -->
+    <div id="preset-dialog" class="dialog hidden">
+      <div class="dialog-content">
+        <h2>Select Preset</h2>
+        <div id="preset-selector" class="preset-selector">
+          <!-- Presets will be rendered here -->
+        </div>
+        <div class="dialog-buttons">
+          <button id="btn-preset-cancel" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+      <span id="toast-message">Message</span>
+    </div>
+  </div>
+
+  <!-- Scripts loaded in order -->
+  <script src="js/storage.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/workout.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
