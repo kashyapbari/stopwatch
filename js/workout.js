@@ -253,7 +253,7 @@ class WorkoutEngine {
 
       if (atSetRestStart) {
         // Start of set rest - play stop tone
-        audioManager.playStopTone();
+        audioManager.playSetRestTone();
         this.state.lastToneTime = elapsedMs;
       }
 

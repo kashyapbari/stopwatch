@@ -63,15 +63,23 @@ class AudioManager {
    * Signals the beginning of a rep or phase
    */
   playStartTone() {
-    this.playTone(440, 200, 0.3);
+    this.playTone(440, 200, 0.8);
   }
 
   /**
-   * Play stop tone (880Hz, 200ms)
+   * Play stop tone (880Hz, 400ms)
    * Signals the end of a rep or phase
    */
   playStopTone() {
-    this.playTone(880, 400, 0.3);
+    this.playTone(880, 400, 0.7);
+  }
+
+  /**
+   * Play set rest tone (700Hz, 400ms)
+   * Signals the end of a rep or phase
+   */
+  playSetRestTone() {
+    this.playTone(700, 1500, 0.7)
   }
 
   /**
@@ -99,7 +107,7 @@ class AudioManager {
    * Used in countdown sequence
    */
   playCountdownBeep() {
-    this.playTone(600, 100, 0.5);
+    this.playTone(600, 100, 0.8);
   }
 
   /**
