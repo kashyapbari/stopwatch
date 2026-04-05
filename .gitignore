@@ -42,3 +42,40 @@ build/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# React Native / Expo
+.expo/
+.expo-shared/
+*.jsbundle
+
+# iOS
+ios/Pods/
+ios/Podfile.lock
+ios/build/
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+
+# Metro bundler cache
+.metro-health-check-result
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcworkspace/xcuserdata
+xcuserdata/
+*.xcworkspace
+*.xcodeproj/xcuserdata/
+
+# misc
+coverage/
+.DS_Store
