@@ -1,6 +1,8 @@
-# Advanced Stopwatch - Workout Timer
+# Advanced Stopwatch - Unified React Native Platform
 
-A lightweight, responsive web application designed for timed workout exercises with automated audio cues and preset management. Perfect for HIIT, CrossFit, strength training, yoga, breathing exercises, and any workout requiring specific intervals.
+> **Note:** This project is undergoing a React Native migration to provide a unified codebase for Web, iOS, and Android. See documentation below for the React Native implementation details.
+
+A lightweight, responsive workout timer application available on **Web (GitHub Pages)**, **iOS**, and **Android** with automated audio cues and preset management. Perfect for HIIT, CrossFit, strength training, yoga, breathing exercises, and any workout requiring specific intervals.
 
 ## Features
 
@@ -212,11 +214,46 @@ H       - History
 
 MIT License - Free to use, modify, and distribute.
 
+## React Native Migration Documentation
+
+This project is being migrated to a **unified React Native codebase** supporting Web, iOS, and Android from a single codebase.
+
+### 📚 Documentation Guide
+
+- **`SETUP_QUICKSTART.md`** - Quick start guide and npm scripts reference
+- **`RN_UNIFIED_MIGRATION_PLAN.md`** - Complete technical specification (all 9 phases)
+- **`MIGRATION_COMPLETION_STATUS.md`** - Track progress through each phase
+- **`PLAN.md`** - Original web app specification (for reference)
+
+### 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install --legacy-peer-deps
+
+# Start web development server
+npm run start:web
+
+# Run tests
+npm run test
+
+# Build for production
+npm run build:web
+```
+
+### 📊 Project Status
+
+- **Phase 1:** ✅ Complete - Project setup & foundation
+- **Phases 2-9:** ⏳ Pending - Business logic through deployment
+- **Overall:** 11% complete (1 of 9 phases)
+
+See `MIGRATION_COMPLETION_STATUS.md` for detailed progress.
+
 ## Support
 
 For bugs, feature requests, or questions:
 - Open an issue on GitHub
-- Check the PLAN.md document for implementation details
+- Check the migration documentation for implementation details
 
 ## Credits
 

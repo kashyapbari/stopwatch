@@ -1,20 +1,18 @@
 /**
- * Type definitions for the Stopwatch application
+ * Central export for all type definitions
  */
 
-export interface StopwatchState {
-  isRunning: boolean;
-  elapsedTime: number;
-  laps: number[];
-}
+// Workout types
+export type {
+  WorkoutConfig,
+  WorkoutState,
+  WorkoutPhase,
+  Preset,
+  WorkoutHistoryEntry,
+} from './workout';
 
-export interface TimerState {
-  displayTime: string;
-  isActive: boolean;
-}
+// Storage types
+export type { IStorageProvider, IStorageManager } from './storage';
 
-export interface AppSettings {
-  theme: 'light' | 'dark';
-  soundEnabled: boolean;
-  vibrationsEnabled: boolean;
-}
+// Audio types
+export type { IAudioManager, ToneConfig, AudioContextType } from './audio';
