@@ -24,11 +24,38 @@ try {
 }
 
 /**
+ * Configuration for tone parameters
+ */
+interface ToneDefinition {
+  frequency: number;
+  duration: number;
+  volume: number;
+  frequencyEnd?: number; // Optional end frequency for sweeps
+}
+
+/**
  * Web Audio Manager - Uses Web Audio API for tone synthesis
+ * Clean implementation with DRY principles and ADSR envelope abstraction
  */
 class WebAudioManager implements IAudioManager {
   private audioContext: AudioContext | null = null;
   private isSupported: boolean = false;
+
+  // Tone definitions - centralized configuration
+  private readonly TONE_DEFINITIONS: Record<string, ToneDefinition> = {
+    start: { frequency: 523, duration: 150, volume: 0.7 }, // C5 note
+    stop: { frequency: 523, duration: 400, volume: 0.7, frequencyEnd: 261 }, // C5->C4 sweep
+    setRest: { frequency: 261, duration: 600, volume: 0.6 }, // C4 - deep note
+    countdown: { frequency: 800, duration: 80, volume: 0.7 }, // G5 note
+  };
+
+  // ADSR envelope parameters (in seconds)
+  private readonly ENVELOPE = {
+    attack: 0.005, // 5ms
+    decay: 0.05, // 50ms
+    sustain: 1, // Full volume
+    release: 0.05, // 50ms
+  };
 
   constructor() {
     this.initializeAudioContext();
@@ -47,121 +74,130 @@ class WebAudioManager implements IAudioManager {
     }
   }
 
-  async playTone(frequency: number, duration: number, volume: number = 0.3): Promise<void> {
+  /**
+   * Check if audio is available and log warning if not
+   */
+  private checkAudioAvailable(): boolean {
     if (!this.audioContext || !this.isSupported) {
       console.warn('Web Audio API not available, skipping tone');
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Create and configure an ADSR gain envelope
+   * @param duration Total tone duration in seconds
+   * @returns Configured gain node ready for connection
+   */
+  private createADSREnvelope(duration: number): GainNode {
+    const gainNode = this.audioContext!.createGain();
+    const now = this.audioContext!.currentTime;
+    const endTime = now + duration;
+
+    // Attack phase - fade in
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(this.ENVELOPE.sustain, now + this.ENVELOPE.attack);
+
+    // Decay to sustain level (optional, for longer tones)
+    if (duration > this.ENVELOPE.attack + this.ENVELOPE.decay) {
+      gainNode.gain.linearRampToValueAtTime(
+        this.ENVELOPE.sustain,
+        now + this.ENVELOPE.attack + this.ENVELOPE.decay
+      );
+    }
+
+    // Release phase - fade out
+    gainNode.gain.linearRampToValueAtTime(0, endTime);
+
+    return gainNode;
+  }
+
+  /**
+   * Create and configure an oscillator for a single tone
+   * Handles frequency sweeps if endFrequency is specified
+   * @param frequency Start frequency in Hz
+   * @param duration Duration in seconds
+   * @param frequencyEnd Optional end frequency for sweep
+   * @returns Configured oscillator ready for playback
+   */
+  private createOscillator(
+    frequency: number,
+    duration: number,
+    frequencyEnd?: number
+  ): OscillatorNode {
+    const oscillator = this.audioContext!.createOscillator();
+    oscillator.type = 'sine';
+
+    const now = this.audioContext!.currentTime;
+    const endTime = now + duration;
+
+    // Set frequency (or sweep if endFrequency provided)
+    oscillator.frequency.setValueAtTime(frequency, now);
+    if (frequencyEnd) {
+      oscillator.frequency.linearRampToValueAtTime(frequencyEnd, endTime);
+    }
+
+    return oscillator;
+  }
+
+  /**
+   * Play a tone with specified parameters
+   * Encapsulates the Web Audio API complexity in a clean interface
+   * @param frequency Start frequency in Hz
+   * @param duration Duration in milliseconds
+   * @param volume Volume level 0-1
+   * @param frequencyEnd Optional end frequency for sweep effects
+   */
+  private async playToneInternal(
+    frequency: number,
+    duration: number,
+    volume: number,
+    frequencyEnd?: number
+  ): Promise<void> {
+    if (!this.checkAudioAvailable()) {
       return;
     }
 
     try {
       await this.resumeContext();
 
-      const now = this.audioContext.currentTime;
-      const endTime = now + duration / 1000;
+      const durationSeconds = duration / 1000;
+      const oscillator = this.createOscillator(frequency, durationSeconds, frequencyEnd);
+      const gainNode = this.createADSREnvelope(durationSeconds);
 
-      // Create oscillator for smooth sine wave
-      const oscillator = this.audioContext.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = frequency;
-
-      // Create gain node for volume control and smooth envelope
-      const gainNode = this.audioContext.createGain();
-      gainNode.gain.setValueAtTime(0, now);
-
-      // Attack: 5ms fade in
-      gainNode.gain.linearRampToValueAtTime(volume, now + 0.005);
-
-      // Sustain: hold volume
-      gainNode.gain.linearRampToValueAtTime(volume, endTime - 0.05);
-
-      // Release: 50ms fade out
-      gainNode.gain.linearRampToValueAtTime(0, endTime);
+      // Apply volume scaling
+      gainNode.gain.value = volume;
 
       // Connect and play
       oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
+      gainNode.connect(this.audioContext!.destination);
 
+      const now = this.audioContext!.currentTime;
       oscillator.start(now);
-      oscillator.stop(endTime);
+      oscillator.stop(now + durationSeconds);
     } catch (error) {
       console.warn('Error playing tone:', error);
     }
   }
 
+  async playTone(frequency: number, duration: number, volume: number = 0.3): Promise<void> {
+    await this.playToneInternal(frequency, duration, volume);
+  }
+
   async playStartTone(): Promise<void> {
-    // Short, bright beep - signals go!
-    await this.playTone(523, 150, 0.7); // C5 note
+    const tone = this.TONE_DEFINITIONS.start;
+    await this.playToneInternal(tone.frequency, tone.duration, tone.volume);
   }
 
   async playStopTone(): Promise<void> {
-    // Longer, descending beep - signals stop
-    // Play a descending frequency sweep for more distinctive sound
-    if (!this.audioContext || !this.isSupported) {
-      console.warn('Web Audio API not available, skipping tone');
-      return;
-    }
-
-    try {
-      await this.resumeContext();
-      const now = this.audioContext.currentTime;
-      const duration = 400; // 400ms
-      const endTime = now + duration / 1000;
-
-      const oscillator = this.audioContext.createOscillator();
-      oscillator.type = 'sine';
-
-      // Frequency sweep down: 523Hz (C5) to 261Hz (C4)
-      oscillator.frequency.setValueAtTime(523, now);
-      oscillator.frequency.linearRampToValueAtTime(261, endTime);
-
-      const gainNode = this.audioContext.createGain();
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.7, now + 0.005);
-      gainNode.gain.linearRampToValueAtTime(0.7, endTime - 0.05);
-      gainNode.gain.linearRampToValueAtTime(0, endTime);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-
-      oscillator.start(now);
-      oscillator.stop(endTime);
-    } catch (error) {
-      console.warn('Error playing stop tone:', error);
-    }
+    const tone = this.TONE_DEFINITIONS.stop;
+    await this.playToneInternal(tone.frequency, tone.duration, tone.volume, tone.frequencyEnd);
   }
 
   async playSetRestTone(): Promise<void> {
-    // Even longer, low beep - signals set rest period
-    // Deep, sustained tone for set transitions
-    if (!this.audioContext || !this.isSupported) {
-      console.warn('Web Audio API not available, skipping tone');
-      return;
-    }
-
-    try {
-      await this.resumeContext();
-      const now = this.audioContext.currentTime;
-      const duration = 600; // 600ms
-      const endTime = now + duration / 1000;
-
-      const oscillator = this.audioContext.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 261; // C4 - deep note
-
-      const gainNode = this.audioContext.createGain();
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.6, now + 0.005);
-      gainNode.gain.linearRampToValueAtTime(0.6, endTime - 0.08);
-      gainNode.gain.linearRampToValueAtTime(0, endTime);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-
-      oscillator.start(now);
-      oscillator.stop(endTime);
-    } catch (error) {
-      console.warn('Error playing set rest tone:', error);
-    }
+    const tone = this.TONE_DEFINITIONS.setRest;
+    await this.playToneInternal(tone.frequency, tone.duration, tone.volume);
   }
 
   async playCountdown(): Promise<void> {
@@ -171,27 +207,28 @@ class WebAudioManager implements IAudioManager {
 
     // 3 seconds: 3 beeps
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
 
     // 2 seconds: wait and play 2 beeps
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
 
     // 1 second: wait and play 2 beeps
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
   }
 
   async playCountdownBeep(): Promise<void> {
     // High-pitched beep for countdown
-    await this.playTone(800, 80, 0.7); // G5 note
+    const tone = this.TONE_DEFINITIONS.countdown;
+    await this.playToneInternal(tone.frequency, tone.duration, tone.volume);
   }
 
   async resumeContext(): Promise<void> {
@@ -217,6 +254,7 @@ class WebAudioManager implements IAudioManager {
 
 /**
  * Native Audio Manager - Uses react-native-sound
+ * Placeholder for iOS/Android implementation
  */
 class NativeAudioManager implements IAudioManager {
   private Sound: any = null;
@@ -281,21 +319,21 @@ class NativeAudioManager implements IAudioManager {
 
     // 3 seconds: 3 beeps
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
 
     // 2 seconds: wait and play 2 beeps
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
 
     // 1 second: wait and play 2 beeps
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await this.playCountdownBeep();
-    await new Promise(resolve => setTimeout(resolve, beepGap));
+    await new Promise((resolve) => setTimeout(resolve, beepGap));
     await this.playCountdownBeep();
   }
 
