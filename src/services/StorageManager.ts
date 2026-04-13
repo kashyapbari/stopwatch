@@ -72,93 +72,81 @@ export function formatDate(isoString: string): string {
 }
 
 /**
- * WebStorageProvider - Cookie-based storage for web platform
- * Handles all cookie operations with encoding/decoding
+ * WebStorageProvider - localStorage-based storage for web platform
+ * Uses modern browser localStorage API for reliable persistence
  */
 class WebStorageProvider implements IStorageProvider {
-  private COOKIE_EXPIRY_DAYS = 30;
-
   /**
-   * Set a cookie with expiration date (web only)
+   * Set an item in localStorage
    */
-  private setCookie(name: string, value: string, expiryDays = this.COOKIE_EXPIRY_DAYS): void {
+  private setLocalStorageItem(key: string, value: string): void {
     // Only execute in browser environment
-    if (typeof document === 'undefined') return;
+    if (typeof localStorage === 'undefined') return;
 
-    const date = new Date();
-    date.setTime(date.getTime() + expiryDays * 24 * 60 * 60 * 1000);
-    const expires = `expires=${date.toUTCString()}`;
-    const path = 'path=/';
-    document.cookie = `${name}=${encodeURIComponent(value)}; ${expires}; ${path}`;
-  }
-
-  /**
-   * Get a cookie value by name (web only)
-   */
-  private getCookie(name: string): string | null {
-    // Only execute in browser environment
-    if (typeof document === 'undefined') return null;
-
-    const nameEQ = name + '=';
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-      cookie = cookie.trim();
-      if (cookie.indexOf(nameEQ) === 0) {
-        return decodeURIComponent(cookie.substring(nameEQ.length));
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Delete a cookie by name (web only)
-   */
-  private deleteCookie(name: string): void {
-    // Only execute in browser environment
-    if (typeof document === 'undefined') return;
-
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
-  }
-
-  async getItem(key: string): Promise<string | null> {
     try {
-      return this.getCookie(key);
+      localStorage.setItem(key, value);
     } catch (error) {
-      console.error(`Error getting item from storage: ${key}`, error);
+      console.error(`Error setting item in localStorage: ${key}`, error);
+    }
+  }
+
+  /**
+   * Get an item from localStorage
+   */
+  private getLocalStorageItem(key: string): string | null {
+    // Only execute in browser environment
+    if (typeof localStorage === 'undefined') return null;
+
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error(`Error getting item from localStorage: ${key}`, error);
       return null;
     }
   }
 
-  async setItem(key: string, value: string): Promise<void> {
+  /**
+   * Remove an item from localStorage
+   */
+  private removeLocalStorageItem(key: string): void {
+    // Only execute in browser environment
+    if (typeof localStorage === 'undefined') return;
+
     try {
-      this.setCookie(key, value);
+      localStorage.removeItem(key);
     } catch (error) {
-      console.error(`Error setting item in storage: ${key}`, error);
+      console.error(`Error removing item from localStorage: ${key}`, error);
     }
+  }
+
+  /**
+   * Clear all items from localStorage
+   */
+  private clearLocalStorage(): void {
+    // Only execute in browser environment
+    if (typeof localStorage === 'undefined') return;
+
+    try {
+      localStorage.clear();
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
+    }
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    return this.getLocalStorageItem(key);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    this.setLocalStorageItem(key, value);
   }
 
   async removeItem(key: string): Promise<void> {
-    try {
-      this.deleteCookie(key);
-    } catch (error) {
-      console.error(`Error removing item from storage: ${key}`, error);
-    }
+    this.removeLocalStorageItem(key);
   }
 
   async clear(): Promise<void> {
-    try {
-      // Only execute in browser environment
-      if (typeof document === 'undefined') return;
-
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        const name = cookie.split('=')[0];
-        this.deleteCookie(name);
-      }
-    } catch (error) {
-      console.error('Error clearing storage:', error);
-    }
+    this.clearLocalStorage();
   }
 }
 
@@ -234,6 +222,7 @@ class NativeStorageProvider implements IStorageProvider {
 export class StorageManager implements IStorageManager {
   private provider: IStorageProvider;
   private readonly PRESET_PREFIX = 'stopwatch_preset_';
+  private readonly PRESET_INDEX_KEY = 'stopwatch_preset_index';
   private readonly HISTORY_KEY = 'stopwatch_history';
   private readonly RECENT_PRESETS_LIMIT = 10;
 
@@ -268,6 +257,26 @@ export class StorageManager implements IStorageManager {
 
       const cookieName = this.PRESET_PREFIX + presetId;
       await this.provider.setItem(cookieName, JSON.stringify(presetData));
+
+      // Update the preset index to include this preset ID
+      const indexData = await this.provider.getItem(this.PRESET_INDEX_KEY);
+      let presetIds: string[] = indexData ? JSON.parse(indexData) : [];
+
+      // Add preset ID to index if not already present
+      if (!presetIds.includes(presetId)) {
+        presetIds.unshift(presetId); // Add to front for most recent
+        // Keep only last 10 presets
+        if (presetIds.length > this.RECENT_PRESETS_LIMIT) {
+          presetIds = presetIds.slice(0, this.RECENT_PRESETS_LIMIT);
+        }
+        await this.provider.setItem(this.PRESET_INDEX_KEY, JSON.stringify(presetIds));
+      } else {
+        // Move to front if already exists (most recent)
+        presetIds = presetIds.filter((id) => id !== presetId);
+        presetIds.unshift(presetId);
+        await this.provider.setItem(this.PRESET_INDEX_KEY, JSON.stringify(presetIds));
+      }
+
       return presetId;
     } catch (error) {
       console.error('Error saving preset:', error);
@@ -296,11 +305,8 @@ export class StorageManager implements IStorageManager {
 
   async getAllPresets(): Promise<Preset[]> {
     try {
-      // Since we can't enumerate cookies/storage items in a portable way,
-      // we need to maintain a separate index of preset IDs
-      // For now, this is a limitation - we'll need UI to manually track presets
-      // or use a separate index key
-      const indexData = await this.provider.getItem('stopwatch_preset_index');
+      // Retrieve the index of preset IDs
+      const indexData = await this.provider.getItem(this.PRESET_INDEX_KEY);
       if (!indexData) {
         return [];
       }
@@ -330,14 +336,14 @@ export class StorageManager implements IStorageManager {
       await this.provider.removeItem(cookieName);
 
       // Update preset index
-      const indexData = await this.provider.getItem('stopwatch_preset_index');
+      const indexData = await this.provider.getItem(this.PRESET_INDEX_KEY);
       if (indexData) {
         let presetIds: string[] = JSON.parse(indexData);
         presetIds = presetIds.filter((id) => id !== presetId);
         if (presetIds.length > 0) {
-          await this.provider.setItem('stopwatch_preset_index', JSON.stringify(presetIds));
+          await this.provider.setItem(this.PRESET_INDEX_KEY, JSON.stringify(presetIds));
         } else {
-          await this.provider.removeItem('stopwatch_preset_index');
+          await this.provider.removeItem(this.PRESET_INDEX_KEY);
         }
       }
 

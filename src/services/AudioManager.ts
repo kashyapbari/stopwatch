@@ -40,6 +40,7 @@ interface ToneDefinition {
 class WebAudioManager implements IAudioManager {
   private audioContext: AudioContext | null = null;
   private isSupported: boolean = false;
+  private contextResumeAttempted: boolean = false;
 
   // Tone definitions - centralized configuration
   private readonly TONE_DEFINITIONS: Record<string, ToneDefinition> = {
@@ -67,11 +68,72 @@ class WebAudioManager implements IAudioManager {
       if (AudioContext) {
         this.audioContext = new AudioContext();
         this.isSupported = true;
+        if (this.audioContext) {
+          // Attach listener for first user gesture to resume context synchronously
+          this.attachContextResumeListener();
+        }
+      } else {
+        console.warn('[AudioManager] Web Audio API not available on this browser');
+        this.isSupported = false;
       }
     } catch (e) {
-      console.warn('Web Audio API not supported:', e);
+      console.warn('[AudioManager] Error initializing Web Audio API:', e);
       this.isSupported = false;
     }
+  }
+
+  /**
+   * Attach event listeners to resume AudioContext on first user interaction
+   * Uses passive event listeners on document to catch any user input
+   */
+  private attachContextResumeListener(): void {
+    if (!this.audioContext || this.contextResumeAttempted) {
+      return;
+    }
+
+    const resumeOnInteraction = () => {
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        this.audioContext
+          .resume()
+          .then(() => {
+            this.contextResumeAttempted = true;
+            // Remove listeners after successful resume
+            this.removeContextResumeListeners();
+          })
+          .catch((err) => {
+            console.warn('[AudioManager] Failed to resume context from user gesture:', err);
+          });
+      }
+    };
+
+    // Add listeners to common user interaction events
+    const events = ['click', 'touchstart', 'keydown', 'mousedown'];
+    events.forEach((event) => {
+      document.addEventListener(event, resumeOnInteraction, { once: true, passive: true });
+    });
+
+    // Store references for cleanup
+    (this.audioContext as any).__resumeListeners = { resumeOnInteraction, events };
+  }
+
+  /**
+   * Remove context resume listeners after successful resume
+   */
+  private removeContextResumeListeners(): void {
+    if (!this.audioContext) {
+      return;
+    }
+
+    const listeners = (this.audioContext as any).__resumeListeners;
+    if (!listeners) {
+      return;
+    }
+
+    const { resumeOnInteraction, events } = listeners;
+    events.forEach((event: string) => {
+      document.removeEventListener(event, resumeOnInteraction);
+    });
+    delete (this.audioContext as any).__resumeListeners;
   }
 
   /**
@@ -156,6 +218,7 @@ class WebAudioManager implements IAudioManager {
     frequencyEnd?: number
   ): Promise<void> {
     if (!this.checkAudioAvailable()) {
+      console.warn('Audio not available for tone playback');
       return;
     }
 
@@ -234,9 +297,13 @@ class WebAudioManager implements IAudioManager {
   async resumeContext(): Promise<void> {
     if (this.audioContext && this.audioContext.state === 'suspended') {
       try {
+        // Try to resume asynchronously, but don't fail if it doesn't work
+        // The synchronous resume from user gesture should have handled it
         await this.audioContext.resume();
+        this.contextResumeAttempted = true;
       } catch (error) {
-        console.warn('Could not resume audio context:', error);
+        // This is expected in browsers with strict autoplay policies
+        // The synchronous resume from user gesture listener should handle it
       }
     }
   }
@@ -266,12 +333,19 @@ class NativeAudioManager implements IAudioManager {
 
   private initializeSound(): void {
     try {
-      // Dynamically import react-native-sound
-      const RNSound = require('react-native-sound').default;
-      this.Sound = RNSound;
-      this.isSupported = true;
-      // Set default playback category to allow mixing with other apps
-      this.Sound.setCategory('Playback', true);
+      // Dynamically import react-native-sound only for native platforms
+      // Using require.resolve to avoid webpack issues on web
+      if (typeof window === 'undefined') {
+        // @ts-ignore - react-native-sound not available on web
+        const RNSound = require('react-native-sound').default;
+        this.Sound = RNSound;
+        this.isSupported = true;
+        // Set default playback category to allow mixing with other apps
+        this.Sound.setCategory('Playback', true);
+      } else {
+        // Web platform - sound not supported
+        this.isSupported = false;
+      }
     } catch (error) {
       console.warn('react-native-sound not available:', error);
       this.isSupported = false;

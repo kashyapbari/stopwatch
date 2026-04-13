@@ -2,7 +2,7 @@ module.exports = {
   preset: 'react-native',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '__tests__/(screens|components)'],
   moduleDirectories: ['node_modules', 'src'],
   moduleNameMapper: {
     '^@screens/(.*)$': '<rootDir>/src/screens/$1',

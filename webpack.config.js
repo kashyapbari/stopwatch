@@ -26,6 +26,9 @@ module.exports = {
       'react-native': 'react-native-web',
     },
   },
+  externals: {
+    'react-native-sound': 'react-native-sound',
+  },
   module: {
     rules: [
       {
